@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משוב בחינות בגרות - פודקסטים</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&family=Heebo:wght@400;700;900&display=swap');
+        
+        :root {
+            --panel-bg: #ffffff;
+            --panel-border: #e2e8f0;
+            --primary-purple: #7c3aed;
+        }
+
+        body {
+            font-family: 'Assistant', sans-serif;
+            background: radial-gradient(circle at top right, #4c1d95, #2e1065, #1e1b4b);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #000000;
+        }
+
+        .font-modern { font-family: 'Heebo', sans-serif; }
+
+        .solid-panel {
+            background: var(--panel-bg);
+            border-radius: 1.5rem;
+            border: 2px solid var(--panel-border);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-relief {
+            background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+            box-shadow: 4px 4px 8px #240d51, -2px -2px 5px rgba(255,255,255,0.1);
+            border: none;
+            transition: all 0.2s ease;
+            color: white !important;
+        }
+
+        .btn-relief:hover {
+            transform: translateY(-2px);
+            box-shadow: 6px 6px 12px #1e0b44;
+        }
+
+        .input-recessed {
+            background: #f8fafc;
+            border: 2px solid #cbd5e1;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.08);
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+            color: #000;
+        }
+
+        .input-recessed:focus {
+            border-color: var(--primary-purple);
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+        }
+
+        .status-toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2.5rem;
+            border-radius: 3rem;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        label { color: #000 !important; font-weight: 800 !important; font-size: 1.05rem; }
+
+        .archive-dropdown-item:hover {
+            background-color: #f1f5f9;
+        }
+
+        .archive-dropdown-item.active {
+            background-color: #e0e7ff;
+            border-right: 4px solid #7c3aed;
+        }
+
+        textarea { resize: vertical; }
+
+        /* Animation for dropdown */
+        #school-archive-dropdown {
+            transform-origin: top;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .hidden-dropdown {
+            transform: scaleY(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="status-message" class="status-toast"></div>
+
+<div id="app" class="max-w-6xl mx-auto p-4 md:p-8 pb-20 text-right">
+    
+    <!-- Login View -->
+    <div id="view-login" class="flex flex-col items-center justify-center min-h-[85vh]">
+        <div class="solid-panel p-8 md:p-12 w-full max-w-2xl text-center animate-fade-in">
+            <div class="inline-flex p-6 bg-purple-100 rounded-3xl mb-6 shadow-inner">
+                <i data-lucide="mic-2" class="w-16 h-16 text-purple-600"></i>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-modern font-black mb-4 text-purple-900">בחינות הבגרות בהפקות פודקסטים</h1>
+            <p class="text-gray-700 font-bold text-lg mb-8">מערכת משוב בוחנים - תשפ"ו</p>
+            
+            <div class="space-y-6 text-right bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 shadow-inner">
+                <div>
+                    <label class="block mb-3 text-purple-900 text-xl font-modern">בחר/י שם בוחן מהרשימה:</label>
+                    <select id="examiner-select" class="input-field input-recessed text-lg w-full py-4 px-6">
+                        <option value="">טוען בוחנים...</option>
+                    </select>
+                </div>
+
+                <button onclick="loginAsExaminer()" class="btn-primary btn-relief w-full py-5 text-xl tracking-widest shadow-xl flex items-center justify-center gap-3 font-black">
+                    <i data-lucide="play" class="w-6 h-6"></i> כניסה למערכת
+                </button>
+
+                <div class="pt-6 border-t border-slate-200 flex justify-center">
+                    <button onclick="showAdminLogin()" class="text-purple-700 font-bold hover:text-purple-900 text-base flex items-center gap-2">
+                        <i data-lucide="settings" class="w-4 h-4"></i> כניסת מנהל
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="modal-admin-login" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="solid-panel p-10 w-full max-w-sm text-center">
+            <h2 class="text-2xl font-modern font-bold mb-6 text-indigo-900">אימות מנהל</h2>
+            <input type="password" id="admin-pass" class="input-recessed w-full p-4 mb-6 text-lg text-center" placeholder="סיסמה">
+            <div class="flex gap-4">
+                <button onclick="verifyAdmin()" class="btn-primary btn-relief flex-1 py-3 font-bold">אישור</button>
+                <button onclick="closeAdminLogin()" class="bg-gray-200 p-3 rounded-xl flex-1 font-bold">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Form View -->
+    <div id="view-form" class="hidden animate-fade-in space-y-8">
+        <!-- Header Controls -->
+        <div class="flex flex-wrap justify-between items-center solid-panel p-6 gap-4 border-b-8 border-purple-600">
+            <div>
+                <h2 id="welcome-msg" class="text-3xl font-modern font-black text-indigo-900"></h2>
+                <p id="auto-save-timer" class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-black inline-flex items-center gap-1 mt-1">
+                    <i data-lucide="refresh-cw" class="w-3 h-3 animate-spin"></i> סנכרון ענן פעיל
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="startNewSubmission()" class="bg-purple-600 text-white px-5 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-md">
+                    <i data-lucide="plus-square" class="w-5 h-5"></i> הוסף בית ספר חדש
+                </button>
+                <button onclick="saveFeedback()" class="btn-primary btn-relief px-6 py-2 font-bold rounded-xl flex items-center gap-2 shadow-lg">
+                    <i data-lucide="save" class="w-5 h-5"></i> שמור הכל
+                </button>
+                <button onclick="returnToMain()" class="bg-white border-2 border-purple-600 px-5 py-2 rounded-xl hover:bg-purple-50 transition-colors font-bold flex items-center gap-2 text-purple-600">
+                    <i data-lucide="home" class="w-5 h-5"></i> חזרה לראשי
+                </button>
+            </div>
+        </div>
+
+        <!-- School Info (Full Width) -->
+        <div class="solid-panel p-8 border-2 border-purple-100">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                <div class="relative">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-lg">שם בית הספר הנבחן</label>
+                        
+                        <!-- Collapsible Archive Trigger -->
+                        <div class="relative inline-block text-right">
+                            <button id="archive-toggle-btn" onclick="toggleSchoolArchive()" class="flex items-center gap-1 text-purple-700 font-bold bg-purple-50 px-3 py-1 rounded-lg border border-purple-200 hover:bg-purple-100 transition-all text-sm">
+                                <i data-lucide="archive" class="w-4 h-4"></i>
+                                <span>ארכיון בתי ספר</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4" id="archive-arrow"></i>
+                            </button>
+                            
+                            <!-- Dropdown Window -->
+                            <div id="school-archive-dropdown" class="hidden-dropdown absolute left-0 z-50 mt-2 w-80 bg-white border-2 border-purple-600 rounded-2xl shadow-2xl overflow-hidden">
+                                <div class="p-3 bg-purple-600 text-white font-black text-sm flex items-center gap-2">
+                                    <i data-lucide="history" class="w-4 h-4"></i> בחר בית ספר לעריכה
+                                </div>
+                                <div id="examiner-internal-list" class="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                                    <!-- Populated via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="text" id="school-name" class="input-recessed w-full p-4 text-lg" placeholder="הכנס שם מוסד">
+                </div>
+                <div>
+                    <label class="block mb-3 text-lg">תאריך הבחינה</label>
+                    <input type="date" id="exam-date" class="input-recessed w-full p-4 text-lg">
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects container -->
+        <div id="projects-container" class="space-y-10"></div>
+
+        <!-- Summary Meeting -->
+        <div class="solid-panel p-8 md:p-10 border-t-8 border-emerald-500 shadow-lg">
+            <h3 class="text-2xl font-modern font-black text-emerald-900 mb-8 flex items-center gap-3">
+                <i data-lucide="message-square" class="w-8 h-8"></i> סיכום שיחה עם המגמה
+            </h3>
+            <div class="space-y-8">
+                <div>
+                    <label class="block text-lg font-bold mb-3">שמות המשתתפים בפגישת הסיכום</label>
+                    <input type="text" id="summary-participants" class="input-recessed w-full p-4 text-lg" placeholder="מורים, רכזים, הנהלה...">
+                </div>
+                <div>
+                    <label class="block text-lg font-bold mb-3">ריכוז הערות מרכזיות שנמסרו בשיחה</label>
+                    <textarea id="summary-final-notes" class="input-recessed w-full p-4 min-h-[160px] text-lg w-full" placeholder="סיכום הנקודות העיקריות..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="solid-panel p-8 flex flex-wrap gap-6 justify-between items-center border-2 border-purple-500 bg-slate-50">
+            <div class="flex gap-4">
+                <button onclick="addProject()" class="bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black text-xl flex items-center gap-3 hover:bg-emerald-700 shadow-lg transition-all">
+                    <i data-lucide="plus-circle" class="w-7 h-7"></i> פרויקט נוסף
+                </button>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="saveFeedback()" class="btn-primary btn-relief px-10 py-4 text-xl font-black shadow-xl">
+                    <i data-lucide="save" class="w-7 h-7"></i> <span>שמור שינויים</span>
+                </button>
+                <button onclick="exportToPDF()" class="bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-xl flex items-center gap-3 hover:bg-red-700 shadow-lg transition-all">
+                    <i data-lucide="file-text" class="w-7 h-7"></i> ייצוא PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin View -->
+    <div id="view-admin" class="hidden animate-fade-in space-y-8">
+        <div class="flex flex-wrap justify-between items-center solid-panel p-6 border-b-8 border-indigo-600">
+            <h2 class="text-3xl font-modern font-black text-indigo-900">ניהול מערכת</h2>
+            <button onclick="returnToMain()" class="bg-white border-2 border-indigo-600 px-8 py-3 rounded-2xl font-black hover:bg-indigo-50 transition-all flex items-center gap-2 text-indigo-700 shadow-md">
+                <i data-lucide="home" class="w-5 h-5"></i> חזרה לראשי
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="solid-panel p-8 border-2 border-indigo-50 lg:col-span-1 h-fit">
+                <h3 class="text-xl font-bold mb-6 border-b-2 border-indigo-100 pb-4 flex items-center gap-2 text-indigo-600 font-modern">
+                    <i data-lucide="user-plus"></i> ניהול בוחנים
+                </h3>
+                <div class="space-y-6">
+                    <div class="flex flex-col gap-3">
+                        <input type="text" id="new-examiner-name" class="input-recessed w-full p-4" placeholder="שם בוחן מלא">
+                        <button onclick="addExaminer()" class="btn-primary btn-relief w-full py-3 font-bold rounded-xl text-lg">הוסף לרשימה</button>
+                    </div>
+                    <div class="mt-8 border-t pt-4">
+                        <h4 class="font-bold text-xs text-gray-400 mb-3 uppercase tracking-tighter">בוחנים רשומים</h4>
+                        <ul id="admin-examiners-list" class="divide-y divide-slate-100 max-h-64 overflow-y-auto font-black text-right text-sm"></ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="solid-panel p-8 lg:col-span-3 border-2 border-indigo-50 min-h-[600px]">
+                <h3 class="text-xl font-bold mb-6 border-b-2 border-indigo-100 pb-4 flex items-center gap-2 text-indigo-600 font-modern">
+                    <i data-lucide="database"></i> מאגר משובים שהוגשו
+                </h3>
+                <div id="admin-submissions-list" class="space-y-4 max-h-[800px] overflow-y-auto pr-2 text-right"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-20 text-center text-white/80 font-black tracking-widest py-8 border-t border-white/10 italic">
+        נוצר ע"י איתי בן טל 2026
+    </footer>
+</div>
+
+<!-- PDF Export Hidden Template -->
+<div id="pdf-export-container" style="display: none; font-family: 'Assistant', sans-serif; direction: rtl; padding: 50px; color: black; background: white;">
+    <div style="text-align: center; border-bottom: 5px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px;">
+        <h1 style="font-size: 28px; margin: 0; color: #4c1d95;">משוב בחינות בגרות בהפקות פודקסטים</h1>
+        <h2 style="font-size: 20px; margin: 5px 0; color: #6d28d9;">שנת הלימודים תשפ"ו</h2>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+        <div><b>בית ספר:</b> <span id="pdf-school"></span></div>
+        <div><b>תאריך:</b> <span id="pdf-date"></span></div>
+        <div><b>בוחן:</b> <span id="pdf-examiner"></span></div>
+    </div>
+    <div id="pdf-projects-list"></div>
+    <div style="margin-top: 30px; padding: 25px; background: #f0fdf4; border-right: 8px solid #059669; border-radius: 12px;">
+        <h3 style="margin-top: 0; color: #064e3b; font-size: 18px;">סיכום שיחת סיכום עם צוות המגמה</h3>
+        <p><b>משתתפים:</b> <span id="pdf-participants"></span></p>
+        <div id="pdf-final-notes" style="line-height: 1.6; font-size: 15px; margin-top: 10px; white-space: pre-wrap;"></div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        apiKey: "AIzaSyCuo4N-w-5JFu2pLwmNmPrnuB56q0-9Ikc",
+        authDomain: "pedagogical-tools.firebaseapp.com",
+        databaseURL: "https://pedagogical-tools-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "pedagogical-tools",
+        storageBucket: "pedagogical-tools.firebasestorage.app",
+        messagingSenderId: "439078826304",
+        appId: "1:439078826304:web:7401674d8b0b2cdc7a4aa5"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : "bagrut-podcast-feedback-v11";
+
+    let currentExaminer = null;
+    let examiners = [];
+    let projectsCount = 0;
+    let currentDocId = null; 
+    let allSubmissions = [];
+    let user = null;
+    let autoSaveInterval = null;
+    let isArchiveOpen = false;
+
+    window.onload = async () => {
+        lucide.createIcons();
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) { await signInAnonymously(auth); }
+        };
+        await initAuth();
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (u) initRealtimeListeners();
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('school-archive-dropdown');
+            const btn = document.getElementById('archive-toggle-btn');
+            if (isArchiveOpen && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                toggleSchoolArchive();
+            }
+        });
+    };
+
+    function initRealtimeListeners() {
+        const exCol = collection(db, 'artifacts', appId, 'public', 'data', 'examiners');
+        onSnapshot(exCol, (snap) => {
+            examiners = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            updateExaminerDropdown();
+            updateAdminExaminerList();
+        });
+        const subCol = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
+        onSnapshot(subCol, (snap) => {
+            allSubmissions = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            updateAdminSubmissions();
+            if(currentExaminer) updateArchiveList();
+        });
+    }
+
+    function showStatus(text, type = 'success') {
+        const t = document.getElementById('status-message');
+        t.innerText = text;
+        t.style.display = 'block';
+        t.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    window.toggleSchoolArchive = () => {
+        const dropdown = document.getElementById('school-archive-dropdown');
+        const arrow = document.getElementById('archive-arrow');
+        isArchiveOpen = !isArchiveOpen;
+        
+        if (isArchiveOpen) {
+            dropdown.classList.remove('hidden-dropdown');
+            arrow.style.transform = 'rotate(180deg)';
+        } else {
+            dropdown.classList.add('hidden-dropdown');
+            arrow.style.transform = 'rotate(0deg)';
+        }
+    };
+
+    window.loginAsExaminer = () => {
+        const v = document.getElementById('examiner-select').value;
+        if (!v) return showStatus("נא לבחור בוחן", "error");
+        currentExaminer = v;
+        setupForm();
+    };
+
+    function updateArchiveList() {
+        const listContainer = document.getElementById('examiner-internal-list');
+        if(!listContainer) return;
+        
+        const my = allSubmissions.filter(s => s.examiner === currentExaminer);
+        if (my.length > 0) {
+            listContainer.innerHTML = my.map(s => `
+                <div class="archive-dropdown-item p-4 cursor-pointer transition-all border-b border-slate-50 flex flex-col gap-1 text-right ${currentDocId === s.id ? 'active' : ''}" onclick="editSubmission('${s.id}')">
+                    <div class="font-black text-indigo-900 text-sm leading-tight">${s.school}</div>
+                    <div class="text-[10px] text-gray-500 flex items-center gap-1 font-bold">
+                        <i data-lucide="calendar" class="w-3 h-3"></i> ${s.date}
+                    </div>
+                </div>`).join('');
+            lucide.createIcons();
+        } else {
+            listContainer.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs italic">טרם הזנת בתי ספר</div>';
+        }
+    }
+
+    window.startNewSubmission = () => {
+        currentDocId = null;
+        setupForm();
+        showStatus("טופס חדש מוכן להזנה");
+        if(isArchiveOpen) toggleSchoolArchive();
+    };
+
+    window.editSubmission = (id) => {
+        const sub = allSubmissions.find(s => s.id === id);
+        if (!sub) return;
+        currentDocId = id;
+        setupForm(sub);
+        if(isArchiveOpen) toggleSchoolArchive();
+    };
+
+    function setupForm(data = null) {
+        document.getElementById('view-login').classList.add('hidden');
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('view-form').classList.remove('hidden');
+        document.getElementById('welcome-msg').innerText = `שלום, ${currentExaminer}`;
+        
+        document.getElementById('school-name').value = data ? (data.school || "") : "";
+        document.getElementById('exam-date').value = data ? (data.date || "") : "";
+        document.getElementById('summary-participants').value = data ? (data.participants || "") : "";
+        document.getElementById('summary-final-notes').value = data ? (data.finalNotes || "") : "";
+        
+        const container = document.getElementById('projects-container');
+        container.innerHTML = '';
+        projectsCount = 0;
+        
+        if (data && data.projects && data.projects.length > 0) {
+            data.projects.forEach(p => addProject(p));
+        } else {
+            addProject();
+        }
+
+        updateArchiveList();
+        if (autoSaveInterval) clearInterval(autoSaveInterval);
+        autoSaveInterval = setInterval(() => saveFeedback(true), 240000);
+        lucide.createIcons();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.addProject = (data = null) => {
+        projectsCount++;
+        const container = document.getElementById('projects-container');
+        const div = document.createElement('div');
+        div.className = "solid-panel p-6 md:p-10 border-r-[12px] border-purple-600 project-entry relative animate-fade-in text-right w-full";
+        div.id = `project-${projectsCount}`;
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-black text-indigo-900 bg-slate-100 px-6 py-2 rounded-2xl border border-slate-200 shadow-inner font-modern">פרויקט #${projectsCount}</h3>
+                <button onclick="removeProject('${div.id}')" class="text-red-600 bg-red-50 p-2 rounded-full hover:bg-red-100 transition-colors shadow-sm"><i data-lucide="trash-2"></i></button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                <div><label class="block mb-2 text-indigo-950">שמות תלמידים בקבוצה</label><input type="text" class="input-field input-recessed w-full p-4 f-names" value="${data?.names||''}"></div>
+                <div><label class="block mb-2 text-indigo-950">נושא הפרויקט / כותרת</label><input type="text" class="input-field input-recessed w-full p-4 f-subject" value="${data?.subject||''}"></div>
+                <div><label class="block mb-2 text-indigo-950">רמת יחידות לימוד</label><select class="input-recessed w-full p-4 f-level font-bold"><option value="5" ${data?.level==='5'?'selected':''}>5 יח"ל</option><option value="3" ${data?.level==='3'?'selected':''}>3 יח"ל</option></select></div>
+                <div><label class="block mb-2 text-indigo-700">קישור לעמוד הפרויקט</label><input type="url" class="input-field input-recessed w-full p-4 f-project-link" value="${data?.projectLink||''}" placeholder="https://..."></div>
+                <div class="md:col-span-2 text-right"><label class="block mb-2 text-blue-700 font-black">קישור לרשת חברתית / עמוד שיווקי</label><input type="url" class="input-field input-recessed w-full p-4 f-social-link" value="${data?.socialLink||''}" placeholder="https://..."></div>
+            </div>
+            <div class="space-y-6">
+                ${renderField("1. חוות דעת על שלב התחקיר ובקיאות בתכנון", "f-research", data?.research)}
+                ${renderField("2. חוות דעת על איכות התוצרים (עיתונאית וטכנית)", "f-quality", data?.quality)}
+                ${renderField("3. חוות דעת על איכות הקלטת ראיון שטח או פנים אל פנים", "f-interview", data?.interview)}
+                ${renderField("4. בקיאות בתוכן שנכתב בתיק ההפקה", "f-portfolio", data?.portfolio)}
+                ${renderField("5. יכולת לנמק בחירות ולבצע אותן הלכה למעשה", "f-reasoning", data?.reasoning)}
+                ${renderField("6. עמידה ביעדים שהוצבו", "f-goals", data?.goals)}
+                ${renderField("7. שימוש מושכל בבינה מלאכותית (AI)", "f-ai", data?.ai)}
+                ${renderField("8. איכות השיווק הדיגיטלי והנוכחות ברשת", "f-marketing", data?.marketing)}
+                ${renderField("9. הערות כלליות לסיכום הפרויקט", "f-summary", data?.summary)}
+                
+                <div class="section-divider"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block mb-2 text-purple-900">11. הערכה מסכמת לאיכות הפרויקט</label>
+                        <select class="input-field input-recessed w-full p-4 f-grade font-black">
+                            <option value="">בחר/י הערכה...</option>
+                            <option value="מצטיין" ${data?.grade==='מצטיין'?'selected':''}>פרויקט מצטיין</option>
+                            <option value="טוב" ${data?.grade==='טוב'?'selected':''}>פרויקט טוב</option>
+                            <option value="בינוני" ${data?.grade==='בינוני'?'selected':''}>פרויקט בינוני</option>
+                            <option value="חלש" ${data?.grade==='חלש'?'selected':''}>פרויקט חלש</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-purple-900">12. המלצה לפרסום באתר המשרד</label>
+                        <select class="input-field input-recessed w-full p-4 f-publish font-black">
+                            <option value="">בחר/י המלצה...</option>
+                            <option value="מומלץ מאוד" ${data?.publish==='מומלץ מאוד'?'selected':''}>מומלץ מאוד</option>
+                            <option value="מומלץ" ${data?.publish==='מומלץ'?'selected':''}>מומלץ</option>
+                            <option value="לא מומלץ" ${data?.publish==='לא מומלץ'?'selected':''}>לא מומלץ</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="custom-fields-area mt-8 space-y-6">${data?.customs?.map(c => renderCustomField(c.label, c.value)).join('')||''}</div>
+            <button onclick="addCustomField('${div.id}')" class="mt-8 text-indigo-900 font-black flex items-center gap-2 hover:underline"><i data-lucide="plus-circle"></i> הוספת קטגוריית הערכה אישית</button>
+        `;
+        container.appendChild(div);
+        lucide.createIcons();
+    };
+
+    function renderField(label, cls, val) {
+        return `<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-right w-full"><label class="mb-3 block text-indigo-950 font-bold">${label}</label><textarea class="input-field input-recessed w-full p-4 min-h-[120px] text-lg ${cls}">${val||''}</textarea></div>`;
+    }
+
+    function renderCustomField(label, val) {
+        return `<div class="p-8 bg-indigo-50 rounded-2xl border-2 border-indigo-100 shadow-inner text-right w-full"><label class="mb-3 block text-indigo-900 font-black">${label}</label><textarea class="input-field input-recessed w-full p-4 min-h-[100px] f-custom-val" data-label="${label}">${val||''}</textarea></div>`;
+    }
+
+    window.addCustomField = (pid) => {
+        const l = prompt("הזן את שם הקטגוריה החדשה:");
+        if (!l) return;
+        const area = document.querySelector(`#${pid} .custom-fields-area`);
+        const div = document.createElement('div');
+        div.innerHTML = renderCustomField(l, "");
+        area.appendChild(div);
+    };
+
+    window.removeProject = (id) => { if(confirm("האם למחוק פרויקט זה?")) document.getElementById(id).remove(); };
+
+    window.saveFeedback = async (isAuto = false) => {
+        if (!user) return;
+        const school = document.getElementById('school-name').value;
+        if (!school) { if(!isAuto) showStatus("נא להזין שם בית ספר לפני השמירה", "error"); return; }
+        
+        const projects = Array.from(document.querySelectorAll('.project-entry')).map(el => {
+            const customs = Array.from(el.querySelectorAll('.f-custom-val')).map(c => ({ label: c.dataset.label, value: c.value }));
+            return {
+                names: el.querySelector('.f-names').value,
+                subject: el.querySelector('.f-subject').value,
+                level: el.querySelector('.f-level').value,
+                projectLink: el.querySelector('.f-project-link').value,
+                socialLink: el.querySelector('.f-social-link').value,
+                research: el.querySelector('.f-research').value,
+                quality: el.querySelector('.f-quality').value,
+                interview: el.querySelector('.f-interview').value,
+                portfolio: el.querySelector('.f-portfolio').value,
+                reasoning: el.querySelector('.f-reasoning').value,
+                goals: el.querySelector('.f-goals').value,
+                ai: el.querySelector('.f-ai').value,
+                marketing: el.querySelector('.f-marketing').value,
+                summary: el.querySelector('.f-summary').value,
+                grade: el.querySelector('.f-grade').value,
+                publish: el.querySelector('.f-publish').value,
+                customs
+            };
+        });
+
+        const data = {
+            examiner: currentExaminer,
+            school,
+            date: document.getElementById('exam-date').value,
+            participants: document.getElementById('summary-participants').value,
+            finalNotes: document.getElementById('summary-final-notes').value,
+            projects,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            if (currentDocId) {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'submissions', currentDocId), data);
+            } else {
+                const r = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'submissions'), data);
+                currentDocId = r.id;
+            }
+            if (!isAuto) showStatus("הנתונים נשמרו בהצלחה בענן");
+            updateArchiveList();
+        } catch (e) { if(!isAuto) showStatus("שגיאת סנכרון", "error"); }
+    };
+
+    window.exportToPDF = () => {
+        const s = document.getElementById('school-name').value;
+        document.getElementById('pdf-school').innerText = s;
+        document.getElementById('pdf-date').innerText = document.getElementById('exam-date').value;
+        document.getElementById('pdf-examiner').innerText = currentExaminer;
+        document.getElementById('pdf-participants').innerText = document.getElementById('summary-participants').value;
+        document.getElementById('pdf-final-notes').innerText = document.getElementById('summary-final-notes').value;
+        
+        const list = document.getElementById('pdf-projects-list');
+        list.innerHTML = Array.from(document.querySelectorAll('.project-entry')).map((el, i) => `
+            <div style="margin-bottom: 40px; border-bottom: 3px solid #f3f4f6; padding-bottom: 20px;">
+                <h4 style="color: #1e1b4b; font-size: 20px; font-weight: 900; margin-bottom: 10px;">פרויקט #${i+1}: ${el.querySelector('.f-names').value}</h4>
+                <p><b>נושא:</b> ${el.querySelector('.f-subject').value} | <b>רמה:</b> ${el.querySelector('.f-level').value} יח"ל</p>
+                <div style="margin-top: 15px; line-height: 1.7; font-size: 15px; white-space: pre-wrap;"><b>סיכום בוחן:</b><br>${el.querySelector('.f-summary').value}</div>
+            </div>`).join('');
+            
+        const el = document.getElementById('pdf-export-container');
+        el.style.display = 'block';
+        html2pdf().from(el).set({
+            margin: 10,
+            filename: `Feedback_${s}.pdf`,
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).save().then(() => el.style.display = 'none');
+    };
+
+    window.showAdminLogin = () => document.getElementById('modal-admin-login').classList.replace('hidden', 'flex');
+    window.closeAdminLogin = () => document.getElementById('modal-admin-login').classList.replace('flex', 'hidden');
+    
+    window.verifyAdmin = () => {
+        if (document.getElementById('admin-pass').value === 'ibt1234') {
+            closeAdminLogin();
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-admin').classList.remove('hidden');
+            document.getElementById('view-form').classList.add('hidden');
+            window.scrollTo(0,0);
+        } else showStatus("סיסמה שגויה", "error");
+    };
+
+    window.returnToMain = () => {
+        currentDocId = null;
+        currentExaminer = null;
+        document.getElementById('examiner-select').value = "";
+        document.getElementById('view-form').classList.add('hidden');
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('view-login').classList.remove('hidden');
+        if (autoSaveInterval) clearInterval(autoSaveInterval);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addExaminer = async () => {
+        const n = document.getElementById('new-examiner-name').value;
+        if (n && user) {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'examiners'), { name: n });
+            document.getElementById('new-examiner-name').value = '';
+            showStatus("בוחן נוסף לרשימה");
+        }
+    };
+
+    window.deleteExaminer = async (id) => { if(user && confirm("למחוק בוחן זה?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'examiners', id)); };
+
+    function updateExaminerDropdown() {
+        const s = document.getElementById('examiner-select');
+        const currentVal = s.value;
+        s.innerHTML = '<option value="">בחר/י שם בוחן מהרשימה...</option>' + examiners.map(ex => `<option value="${ex.name}">${ex.name}</option>`).join('');
+        s.value = currentVal;
+    }
+
+    function updateAdminExaminerList() {
+        document.getElementById('admin-examiners-list').innerHTML = examiners.map(ex => `
+            <li class="py-4 flex justify-between items-center text-black px-2 border-b border-slate-50">
+                <span>${ex.name}</span>
+                <button onclick="deleteExaminer('${ex.id}')" class="text-red-500 font-bold hover:underline text-xs">מחק</button>
+            </li>`).join('');
+    }
+
+    function updateAdminSubmissions() {
+        const list = document.getElementById('admin-submissions-list');
+        list.innerHTML = allSubmissions.length ? allSubmissions.map(s => `
+            <div class="solid-panel p-6 border flex justify-between items-center shadow-md mb-4 text-right">
+                <div class="text-right">
+                    <div class="font-black text-xl text-indigo-900">${s.school}</div>
+                    <div class="text-sm font-bold text-indigo-700">${s.examiner} | ${s.date}</div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">פרויקטים: ${s.projects.length}</div>
+                </div>
+                <button onclick="editSubmission('${s.id}')" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-sm font-black shadow-md hover:bg-indigo-700 flex items-center gap-2">
+                    <i data-lucide="eye"></i> צפייה
+                </button>
+            </div>`).join('') : '<p class="text-indigo-800 italic font-bold">אין משובים במאגר.</p>';
+        lucide.createIcons();
+    }
+
+</script>
+</body>
+</html>
